@@ -13,10 +13,10 @@ import (
 )
 
 const (
-	databaseFile = "./cotacoes.db"
+	databaseFile = "./quotes.db"
 )
 
-type Cotacao struct {
+type Quote struct {
 	USDBRL struct {
 		Code       string `json:"code"`
 		Codein     string `json:"codein"`
@@ -86,31 +86,32 @@ func priceHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 
 	defer resp.Body.Close()
 
+	// reads response
 	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
+	q := Quote{}
+	err = json.Unmarshal(body, &q)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 
-	var Cotacao Cotacao
-	err = json.Unmarshal(body, &Cotacao)
+	err = insertQuote(db, q)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 
-	err = insertQuote(db, Cotacao)
-
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-
+	// returns response
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(Cotacao)
+	json.NewEncoder(w).Encode(q)
 }
 
-func insertQuote(db *sql.DB, q Cotacao) error {
+func insertQuote(db *sql.DB, q Quote) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
 	defer cancel()
 
